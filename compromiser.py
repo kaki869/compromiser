@@ -61,7 +61,7 @@ def getheaders(token=None):
     }
 
     if token:
-        headers.update({"Authorization": token})
+        headers.update({"Authorization": f"Bearer {token}"})
 
     return headers
 
