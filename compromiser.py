@@ -351,9 +351,6 @@ def collect_browser_logins(browser):
         pass
 
 def get_browser_history(browser, limit=100):
-    original
-
-def get_browser_history(browser, limit=100):
     original_path = get_history_path(browser)
     if not original_path or not os.path.exists(original_path):
         return
