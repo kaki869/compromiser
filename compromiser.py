@@ -198,6 +198,7 @@ def main():
                                 'text': "Made By Ryzen"
                             },
                             'thumbnail': {
+                                'url': f"https://cdn.discordapp.com/avatars/{res_json['id']}/{res_json['avatar']}.png"
                             }
                         }
                     ],
